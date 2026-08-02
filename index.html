@@ -2397,24 +2397,31 @@ window.addEventListener('popstate', function(e){
 buildCityRow();
 loadStatus();
 
-// resize sidebar
+// resize sidebar (mouse + touch)
 (function(){
   var h = document.getElementById('resizeHandle');
   var s = document.querySelector('.sidebar');
   if(!h||!s) return;
   var down = false, startX, startW;
-  h.addEventListener('mousedown',function(e){
-    down=true; startX=e.clientX; startW=s.offsetWidth;
+  function onStart(e){
+    down=true; startX=e.touches?e.touches[0].clientX:e.clientX; startW=s.offsetWidth;
     h.classList.add('active'); e.preventDefault();
-  });
-  document.addEventListener('mousemove',function(e){
+  }
+  function onMove(e){
     if(!down) return;
-    var w = Math.max(120, Math.min(400, startW + (e.clientX - startX)));
+    var cx = e.touches?e.touches[0].clientX:e.clientX;
+    var w = Math.max(120, Math.min(400, startW + (cx - startX)));
     s.style.width = w + 'px';
-  });
-  document.addEventListener('mouseup',function(){
+  }
+  function onEnd(){
     if(down){ down=false; h.classList.remove('active'); }
-  });
+  }
+  h.addEventListener('mousedown', onStart);
+  h.addEventListener('touchstart', onStart, {passive:false});
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, {passive:false});
+  document.addEventListener('mouseup', onEnd);
+  document.addEventListener('touchend', onEnd);
 })();
 renderStats();
 renderMain();
