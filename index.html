@@ -2680,11 +2680,13 @@ document.addEventListener('click', e=>{
         detail.style.display = 'none';
         linkEl.classList.remove('open');
         linkEl.textContent = '查看详情 ▾';
+        saveState();
         if(history.state && history.state.posId === posId) history.back();
       } else {
         detail.style.display = 'block';
         linkEl.classList.add('open');
         linkEl.textContent = '收起详情 ▴';
+        saveState();
         history.pushState({posId:posId}, '', '#'+posId);
       }
     }
@@ -2697,6 +2699,7 @@ document.addEventListener('click', e=>{
     if(body){
       body.style.display = body.style.display==='none' ? '' : 'none';
       orgHead.classList.toggle('collapsed', body.style.display==='none');
+      saveState();
     }
     return;
   }
@@ -2706,6 +2709,7 @@ document.addEventListener('click', e=>{
     document.querySelectorAll('[data-city]').forEach(c=>c.classList.toggle('sel', c.dataset.city===selCity));
     renderStats();
     renderMain();
+    saveState();
     return;
   }
   const stat = e.target.closest('.stat');
@@ -2713,6 +2717,7 @@ document.addEventListener('click', e=>{
     selType = stat.dataset.stat;
     renderStats();
     renderMain();
+    saveState();
     return;
   }
   const posStatus = e.target.closest('.pos-status');
@@ -2731,11 +2736,46 @@ document.addEventListener('click', e=>{
     document.querySelectorAll('.st-filter').forEach(f=>f.classList.toggle('on',f===stFilter));
     renderStats();
     renderMain();
+    saveState();
     return;
   }
 });
 
+// save/restore scroll + expanded state
+function saveState(){
+  var open=[];
+  document.querySelectorAll('.pos-link.open').forEach(l=>open.push(l.dataset.pos));
+  var st={open:open,scTop:window.scrollY,city:selCity,type:selType,status:selStatus};
+  try{sessionStorage.setItem('wb_state',JSON.stringify(st));}catch(e){}
+}
+function restoreState(){
+  try{
+    var st=JSON.parse(sessionStorage.getItem('wb_state'));
+    if(st){
+      if(st.city) selCity=st.city;
+      if(st.type) selType=st.type;
+      if(st.status) selStatus=st.status;
+      renderStats();renderMain();
+      setTimeout(()=>{
+        if(st.open) st.open.forEach(pid=>{
+          var link=document.querySelector('.pos-link[data-pos=\"'+pid+'\"]');
+          if(link){
+            var detail=document.getElementById(pid+'-detail');
+            if(detail){detail.style.display='block';link.classList.add('open');link.textContent='收起详情 ▴';}
+          }
+        });
+        if(st.scTop) window.scrollTo(0,st.scTop);
+        // restore filter UI
+        document.querySelectorAll('[data-city]').forEach(c=>c.classList.toggle('sel',c.dataset.city===selCity));
+        document.querySelectorAll('.st-filter').forEach(f=>f.classList.toggle('on',f.dataset.st===selStatus));
+      },100);
+    }
+  }catch(e){}
+}
+window.addEventListener('beforeunload',saveState);
+
 window.addEventListener('popstate', function(e){
+  saveState();
   const openLinks = document.querySelectorAll('.pos-link.open');
   if(openLinks.length > 0){
     openLinks.forEach(link=>{
@@ -2779,6 +2819,7 @@ loadStatus();
 })();
 renderStats();
 renderMain();
+restoreState();
 </script>
 </body>
 </html>
