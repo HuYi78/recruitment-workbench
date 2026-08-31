@@ -2916,7 +2916,6 @@ const JOBS = [
     "link": "https://www.jssvc.edu.cn"
   }
 ];
-
 // ============ TYPES CONFIG ============
 const TYPE_CONFIG = {
   "私企":   {label:"私企",     cls:"pri",   order:1},
@@ -3635,9 +3634,39 @@ const ST_LABELS = ['未投递','已投递','已回复/面试','已录用','不�
 var selStatus = 'all';
 var STATUS = {};
 
+// 归一化key：小写 + 去空格 + 去括号及内容 + 去分隔符，用于数据更新后旧投递状态的兜底匹配
+function normKey(s){
+  return (s||'').toLowerCase()
+    .replace(/[()（）][^()（）]*[()（）]/g,'')
+    .replace(/[·\-—_,，、\s]/g,'');
+}
+// 数据更新后 title/org 表述若被微调，精确key会失配；此处用归一化key把旧状态迁移到当前岗位，保证投递状态不因更新丢失
+function migrateStatus(){
+  var curKeys = new Set(), normMap = {};
+  JOBS.forEach(function(j){
+    var k = j.title + '|||' + j.org;
+    curKeys.add(k);
+    var nk = normKey(k);
+    if(!normMap[nk]) normMap[nk] = k;
+  });
+  var changed = false;
+  Object.keys(STATUS).forEach(function(oldK){
+    if(curKeys.has(oldK)) return;
+    var nk = normKey(oldK);
+    if(normMap[nk] && normMap[nk] !== oldK){
+      STATUS[normMap[nk]] = STATUS[oldK];
+      delete STATUS[oldK];
+      changed = true;
+    }
+  });
+  if(changed){
+    try { localStorage.setItem('jobtrack_status', JSON.stringify(STATUS)); } catch(e){}
+  }
+}
 function loadStatus(){
   try { STATUS = JSON.parse(localStorage.getItem('jobtrack_status')||'{}'); }
   catch(e){ STATUS = {}; }
+  migrateStatus();
 }
 function saveStatus(key, val){
   STATUS[key] = val;
