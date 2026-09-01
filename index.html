@@ -98,7 +98,7 @@
   .pos-salary{color:#c2410c;font-weight:700;font-size:13.5px;white-space:nowrap;}
   .pos-edu{font-size:12px;color:var(--muted);white-space:nowrap;}
   .pos-date{font-size:11px;color:var(--muted);white-space:nowrap;}
-  .pos-deadline{font-size:11px;color:#c2410c;white-space:nowrap;font-weight:600;}
+  .pos-deadline{font-size:11px;color:#c2410c;white-space:nowrap;font-weight:600;}  .pos-row.expired{opacity:.55;}  .pos-row.expired .pos-title{text-decoration:line-through;color:var(--muted);}  .pos-row.expired .pos-deadline{color:#b91c1c;font-weight:700;}  .pos-row.expired .pos-rel{opacity:.6;}
   .pos-link{font-size:12.5px;font-weight:600;color:#fff;background:var(--brand);padding:6px 14px;
     border-radius:7px;transition:.15s;white-space:nowrap;cursor:pointer;user-select:none;}
   .pos-link:hover{background:#0f4f9c;}
@@ -4141,6 +4141,24 @@ function groupByOrg(list){
   });
 }
 
+function isExpired(p){
+  if(p && p.expired === true) return true;
+  var raw = (p && p.deadline) || '';
+  var s = String(raw).replace(/截止|至|前|前完成|为止/g,'').trim();
+  var y = null, mo = null, d = null;
+  var m1 = s.match(/(\d{4})[.\-\/年](\d{1,2})[月.\-\/](\d{1,2})日?/);
+  var m2 = s.match(/(\d{4})[.\-\/年](\d{1,2})月?/);
+  var m3 = s.match(/^(\d{8})$/);
+  if(m1){ y=+m1[1]; mo=+m1[2]; d=+m1[3]; }
+  else if(m2){ y=+m2[1]; mo=+m2[2]; d=null; }
+  else if(m3){ y=+m3[1].slice(0,4); mo=+m3[1].slice(4,6); d=+m3[1].slice(6,8); }
+  if(!y || y<2020 || y>2099) return false;
+  var today = new Date();
+  today.setHours(0,0,0,0);
+  var end = d ? new Date(y, mo-1, d) : new Date(y, mo, 0);
+  end.setHours(23,59,59,999);
+  return end.getTime() < today.getTime();
+}
 function renderOrgCard(group, cfg){
   orgIdCounter++;
   const oid = 'org-'+orgIdCounter;
@@ -4148,13 +4166,16 @@ function renderOrgCard(group, cfg){
   const desc = COMPANY_INFO[group.org] || '';
   const profile = COMPANY_PROFILE[group.org] || null;
   const maxScore = Math.max(...group.positions.map(p=>p.score||0));
-  const rows = group.positions.map(p=>{
+  const sortedPos = [...group.positions].sort((a,b)=>((isExpired(a)?1:0)-(isExpired(b)?1:0)) || (b.score-a.score));
+  const rows = sortedPos.map(p=>{
     posIdCounter++;
     const pid = 'pos-'+posIdCounter;
     const s = p.score || 3;
     const relCls = 's'+s;
     const tags = p.fields.map(f=>`<span class="tag">${f}</span>`).join('');
     const linkUrl = p.link ? p.link.replace(/"/g,'&quot;') : '#';
+    const expired = isExpired(p);
+    const dlText = expired ? (p.deadline ? p.deadline+'（已截止）' : '已截止') : (p.deadline||'见原文');
     let profileHTML = '';
     if(profile){
       profileHTML = `
@@ -4164,7 +4185,7 @@ function renderOrgCard(group, cfg){
         <div class="pos-profile-item"><b>企业理念：</b>${profile.idea}</div>
       </div>`;
     }
-    return `<div class="pos-row" id="${pid}">
+    return `<div class="pos-row${expired?' expired':''}" id="${pid}">
       <span class="pos-rel ${relCls}">${REL_LABEL[s]}</span>
       <div class="pos-main">
         <div class="pos-title">${p.title}</div>
@@ -4173,7 +4194,7 @@ function renderOrgCard(group, cfg){
       <span class="pos-salary">${p.salary}</span>
       <span class="pos-edu">${p.edu}</span>
       <span class="pos-date">📅 ${p.date}</span>
-      <span class="pos-deadline">⏰ ${p.deadline||'见原文'}</span>
+      <span class="pos-deadline">⏰ ${dlText}</span>
       <span class="pos-status st0" data-job="${p.title}|||${group.org}" title="点击切换投递状态：未投递→已投递→已回复→已录用→不合适">未投递</span>
       <span class="pos-link" data-pos="${pid}" data-link="${linkUrl}">查看详情 ▾</span>
     </div>
@@ -4188,7 +4209,7 @@ function renderOrgCard(group, cfg){
         <dt>学历要求</dt><dd>${p.edu}</dd>
         <dt>研究方向</dt><dd>${p.fields.join(' / ')}</dd>
         <dt>发布日期</dt><dd>${p.date}</dd>
-        <dt>截止时间</dt><dd style="color:#c2410c;font-weight:600;">${p.deadline||'见原文（请访问投递链接确认）'}</dd>
+        <dt>截止时间</dt><dd style="color:#c2410c;font-weight:600;">${dlText}</dd>
       </div>
       ${profileHTML}
       <div class="link-area">
