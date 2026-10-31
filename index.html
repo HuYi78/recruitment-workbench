@@ -6281,7 +6281,14 @@ function buildCityRow(){
     cityMap[j.city].total++;
     cityMap[j.city].orgs.add(j.org);
   });
-  const cities = Object.keys(cityMap);
+  const CORE_CITIES = ["武汉","郑州","杭州","苏州","宁波","深圳","广州","东莞","信阳","南昌","济南","合肥","芜湖","马鞍山","淮南","铜陵","滁州"];
+  const cities = Object.keys(cityMap).sort((a,b)=>{
+    const ia = CORE_CITIES.indexOf(a), ib = CORE_CITIES.indexOf(b);
+    if(ia>=0 && ib>=0) return ia-ib;
+    if(ia>=0) return -1;
+    if(ib>=0) return 1;
+    return (cityMap[b].total - cityMap[a].total) || (cityMap[b].orgs.size - cityMap[a].orgs.size);
+  });
   document.getElementById('cityRow').innerHTML =
     `<span class="city-card ${selCity==='all'?'sel':''}" data-city="all">
       <div class="cn">全部城市</div><div class="cd">${VISIBLE.length} 个岗位</div>
